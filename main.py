@@ -38,7 +38,7 @@ def check(sc, i):
         bot.sendMessage("@good_news_everybody", text, parse_mode="Markdown", disable_web_page_preview=False, timeout=5)
         time.sleep(1)
 
-    print(state, '- Публикация обновлена!\r\n', 'Дата публикации: ' + datetime.strftime(newdate, '%c'))
+    print(state, '- Публикация обновлена!\n', 'Дата публикации: ' + datetime.strftime(newdate, '%c'))
     wait(sc, i)
 
 
