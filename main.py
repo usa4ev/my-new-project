@@ -7,6 +7,8 @@ from requests import post
 
 
 def check(sc, i):
+    bot_name = ''
+    token = ''
     state = datetime.strftime(datetime.today(), '%c') + ' Итерация:' + str(i)
     feed = parse("http://rus.vrw.ru/feed")
     new_date = feed['channel'].published
@@ -26,8 +28,8 @@ def check(sc, i):
         text = "_" + item.category + "_\n\n" \
                "["+modifikator(item.title)+"]("+item.link+")" + "\n\n" \
                "" + modifikator(item.description)
-        post("https://api.telegram.org/bot306948333:AAFDFNVKV0psTSR497_9sHhpJY3dZz9dcyA/"
-                  "sendMessage?chat_id=@good_news_everybody&parse_mode=Markdown&text=" + text)
+        post("https://api.telegram.org/bot" + bot_name + ":" + token + '/sendMessage?chat_id=@good_news_everybody'
+                                                                       '&parse_mode=Markdown&text=' + text)
         sleep(1)
     print(state, '- Публикация обновлена!\n', 'Дата публикации: ' + datetime.strftime(new_date, '%c'))
     wait(sc, i)
