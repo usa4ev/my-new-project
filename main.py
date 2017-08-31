@@ -1,51 +1,42 @@
-import feedparser as rssparser
-import sched, time, re
+from feedparser import parse
+from sched import scheduler
+from time import time, sleep
+from re import sub, findall
 import telegram as telega
 from datetime import datetime
 
 
 def check(sc, i):
-
     state = datetime.strftime(datetime.today(), '%c') + ' Итерация:' + str(i)
-
-    feed = rssparser.parse("http://rus.vrw.ru/feed")
-    newdate = feed['channel'].published
-    newdate = parsedate(newdate)
-
+    feed = parse("http://rus.vrw.ru/feed")
+    new_date = feed['channel'].published
+    new_date = parsedate(new_date)
     with open('my_file.txt') as f:
-        lastdate = f.read()
-        dateisfilled = bool(lastdate)
-
-        if dateisfilled:
-            lastdate = datetime.strptime(lastdate, '%c %z')
-
-            if newdate <= lastdate:
+        last_date = f.read()
+        if bool(last_date):
+            last_date = datetime.strptime(last_date, '%c %z')
+            if new_date <= last_date:
                 print(state, '- Нет обновлений...')
                 wait(sc, i)
                 return
         else:
             with open('my_file.txt', 'w') as f:
-                f.write(datetime.strftime(newdate, '%c %z'))
-
+                f.write(datetime.strftime(new_date, '%c %z'))
     bot = telega.Bot("306948333:AAFDFNVKV0psTSR497_9sHhpJY3dZz9dcyA")
-
     for item in feed.entries:
         text = "_" + item.category + "_\n\n" \
                "["+modifikator(item.title)+"]("+item.link+")" + "\n\n" \
                "" + modifikator(item.description)
-        # +"["+item.title+"]("+item.link+")"
-
         bot.sendMessage("@good_news_everybody", text, parse_mode="Markdown", disable_web_page_preview=False, timeout=5)
-        time.sleep(1)
-
-    print(state, '- Публикация обновлена!\n', 'Дата публикации: ' + datetime.strftime(newdate, '%c'))
+        sleep(1)
+    print(state, '- Публикация обновлена!\n', 'Дата публикации: ' + datetime.strftime(new_date, '%c'))
     wait(sc, i)
 
 
 def modifikator(text):
-    modified_text = re.sub(r'(<.?([a-z][a-z0-9]*)\b[^>]*>)|Читать полностью »|Обсудить|\s{2,}', '', text)
+    modified_text = sub(r'(<.?([a-z][a-z0-9]*)\b[^>]*>)|Читать полностью »|Обсудить|\s{2,}', '', text)
     modified_text = modified_text.replace('\n', '\n\n')
-    match = re.findall(r'(?<=&#)[0-9]+(?=;)', modified_text)
+    match = findall(r'(?<=&#)[0-9]+(?=;)', modified_text)
     for each in match:
         modified_text = modified_text.replace(r'&#' + each + r';', chr(int(each)))
     return modified_text
@@ -62,8 +53,6 @@ def parsedate(strdate):
 
 if __name__ == '__main__':
     print("running...")
-
-    s = sched.scheduler(time.time, time.sleep)
+    s = scheduler(time, sleep)
     s.enter(1, 1, check, (*[s, 0], ))
     s.run()
-
