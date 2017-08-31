@@ -2,15 +2,15 @@ from feedparser import parse
 from sched import scheduler
 from time import time, sleep
 from re import sub, findall
-import telegram as telega
 from datetime import datetime
+from requests import post
 
 
 def check(sc, i):
     state = datetime.strftime(datetime.today(), '%c') + ' Итерация:' + str(i)
     feed = parse("http://rus.vrw.ru/feed")
     new_date = feed['channel'].published
-    new_date = parsedate(new_date)
+    new_date = parse_date(new_date)
     with open('my_file.txt') as f:
         last_date = f.read()
         if bool(last_date):
@@ -22,12 +22,12 @@ def check(sc, i):
         else:
             with open('my_file.txt', 'w') as f:
                 f.write(datetime.strftime(new_date, '%c %z'))
-    bot = telega.Bot("306948333:AAFDFNVKV0psTSR497_9sHhpJY3dZz9dcyA")
     for item in feed.entries:
         text = "_" + item.category + "_\n\n" \
                "["+modifikator(item.title)+"]("+item.link+")" + "\n\n" \
                "" + modifikator(item.description)
-        bot.sendMessage("@good_news_everybody", text, parse_mode="Markdown", disable_web_page_preview=False, timeout=5)
+        post("https://api.telegram.org/bot306948333:AAFDFNVKV0psTSR497_9sHhpJY3dZz9dcyA/"
+                  "sendMessage?chat_id=@good_news_everybody&parse_mode=Markdown&text=" + text)
         sleep(1)
     print(state, '- Публикация обновлена!\n', 'Дата публикации: ' + datetime.strftime(new_date, '%c'))
     wait(sc, i)
@@ -47,8 +47,8 @@ def wait(sc, i):
     s.enter(30 * 60, 1, check, (*[sc, i],))
 
 
-def parsedate(strdate):
-    return datetime.strptime(strdate, '%a, %d %b %Y %H:%M:%S %z')
+def parse_date(str_date):
+    return datetime.strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
 
 
 if __name__ == '__main__':
