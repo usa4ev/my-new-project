@@ -1,38 +1,66 @@
 from feedparser import parse
 from sched import scheduler
 from time import time, sleep
-from re import sub, findall
+from re import sub, findall, split
 from datetime import datetime
-from requests import post
+import telegram as telega
 
 
 def check(sc, i):
-    bot_name = ''
-    token = ''
-    state = datetime.strftime(datetime.today(), '%c') + ' Итерация:' + str(i)
+    state = datetime.strftime(datetime.today(), '%c') + ' Итерация: ' + str(i)
     feed = parse("http://rus.vrw.ru/feed")
     new_date = feed['channel'].published
     new_date = parse_date(new_date)
     with open('my_file.txt') as f:
         last_date = f.read()
         if bool(last_date):
+            check_pub_date = True
             last_date = datetime.strptime(last_date, '%c %z')
             if new_date <= last_date:
                 print(state, '- Нет обновлений...')
                 wait(sc, i)
                 return
+            else:
+                update_date(new_date)
+
         else:
-            with open('my_file.txt', 'w') as f:
-                f.write(datetime.strftime(new_date, '%c %z'))
+            update_date(new_date)
+            check_pub_date = False
+
+    token = ""
+    bot = telega.Bot(token)
+
     for item in feed.entries:
-        text = "_" + item.category + "_\n\n" \
-               "["+modifikator(item.title)+"]("+item.link+")" + "\n\n" \
-               "" + modifikator(item.description)
-        post("https://api.telegram.org/bot" + bot_name + ":" + token + '/sendMessage?chat_id=@good_news_everybody'
-                                                                       '&parse_mode=Markdown&text=' + text)
+
+        pub_date = parse_date(item.published)
+
+        if check_pub_date:
+            if pub_date <= last_date:
+                continue
+
+        text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
+               '' + modifikator(item.description) + '\n\n'\
+               '' + cat_to_hashtag(item.category)
+        bot.sendMessage("@good_news_everybody", text, parse_mode="Markdown", disable_web_page_preview=False, timeout=5)
         sleep(1)
-    print(state, '- Публикация обновлена!\n', 'Дата публикации: ' + datetime.strftime(new_date, '%c'))
+    print(state, ' - Публикация обновлена!\n', 'Дата публикации: ', datetime.strftime(new_date, '%c'))
     wait(sc, i)
+
+
+def cat_to_hashtag(category):
+    lst = split(',', category)
+    result = ''
+    for sub_str in lst:
+        if bool(result):
+            result = result + ', '
+        result = result + "#" + str.replace(sub_str.title(), ' ', '')
+
+    return result
+
+
+def update_date(new_date):
+    with open('my_file.txt', 'w') as f:
+        f.write(datetime.strftime(new_date, '%c %z'))
 
 
 def modifikator(text):
@@ -41,7 +69,8 @@ def modifikator(text):
     match = findall(r'(?<=&#)[0-9]+(?=;)', modified_text)
     for each in match:
         modified_text = modified_text.replace(r'&#' + each + r';', chr(int(each)))
-    return modified_text
+
+    return modified_text.rstrip()
 
 
 def wait(sc, i):
