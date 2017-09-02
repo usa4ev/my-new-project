@@ -8,9 +8,8 @@ import telegram as telega
 def check(sc, i):
     state = datetime.strftime(datetime.today(), '%c') + ' Итерация: ' + str(i)
     feed = parse("http://rus.vrw.ru/feed")
-    new_date = feed['channel'].published
-    new_date = parse_date(new_date)
-    with open('my_file.txt') as f:
+    new_date = parse_date(feed['channel'].published)
+    with open('my_file.txt','r+') as f:
         last_date = f.read()
         if bool(last_date):
             check_pub_date = True
@@ -19,14 +18,12 @@ def check(sc, i):
                 print(state, '- Нет обновлений...')
                 wait(sc, i)
                 return
-            else:
-                update_date(new_date)
-
         else:
-            update_date(new_date)
             check_pub_date = False
 
-    token = "306948333:AAFDFNVKV0psTSR497_9sHhpJY3dZz9dcyA"
+        f.write(datetime.strftime(new_date, '%c %z'))
+
+    token = ""
     bot = telega.Bot(token)
 
     for item in reversed(feed.entries):
@@ -58,11 +55,6 @@ def cat_to_hashtag(category):
         result = result + "#" + str.replace(sub_str.title(), ' ', '')
 
     return result
-
-
-def update_date(new_date):
-    with open('my_file.txt', 'w') as f:
-        f.write(datetime.strftime(new_date, '%c %z'))
 
 
 def modifikator(text):
