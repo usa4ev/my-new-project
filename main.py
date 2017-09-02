@@ -5,7 +5,6 @@ from re import sub, findall, split
 from datetime import datetime
 import telegram as telega
 
-
 def check(sc, i):
     state = datetime.strftime(datetime.today(), '%c') + ' Итерация: ' + str(i)
     feed = parse("http://rus.vrw.ru/feed")
@@ -27,11 +26,10 @@ def check(sc, i):
             update_date(new_date)
             check_pub_date = False
 
-    token = ""
+    token = "306948333:AAFDFNVKV0psTSR497_9sHhpJY3dZz9dcyA"
     bot = telega.Bot(token)
 
-    for item in feed.entries:
-
+    for item in reversed(feed.entries):
         pub_date = parse_date(item.published)
 
         if check_pub_date:
@@ -39,16 +37,20 @@ def check(sc, i):
                 continue
 
         text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
-               '' + modifikator(item.description) + '\n\n'\
-               '' + cat_to_hashtag(item.category)
+               '' + modifikator(item.description)
+
+        if hasattr(item, 'category'):
+            text = text + '\n\n' + cat_to_hashtag(item.category)
+
         bot.sendMessage("@good_news_everybody", text, parse_mode="Markdown", disable_web_page_preview=False, timeout=5)
         sleep(1)
+
     print(state, ' - Публикация обновлена!\n', 'Дата публикации: ', datetime.strftime(new_date, '%c'))
     wait(sc, i)
 
 
 def cat_to_hashtag(category):
-    lst = split(',', category)
+    lst = split(', ', category)
     result = ''
     for sub_str in lst:
         if bool(result):
