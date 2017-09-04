@@ -1,7 +1,7 @@
 from feedparser import parse
 from sched import scheduler
 from time import time, sleep
-from re import sub, findall
+from re import sub, findall, split
 from datetime.datetime import _strptime
 from requests import post
 import logging
@@ -47,6 +47,17 @@ def modifikator(text):
     for each in match:
         modified_text = modified_text.replace(r'&#' + each + r';', chr(int(each)))
     return modified_text
+
+
+# Превращение списка категорий в список хэштэгов
+def cat_to_hashtag(category):
+    lst = split(', ', category)
+    result = ''
+    for sub_str in lst:
+        if bool(result):
+            result = result + ', '
+        result = result + "#" + str.replace(sub_str.title(), ' ', '')
+    return result
 
 
 def wait(sc, i):
