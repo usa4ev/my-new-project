@@ -6,8 +6,8 @@ from time import time, sleep
 from re import sub, findall, split
 from time import strptime, strftime
 from requests import post
-import logging
-import configparser
+from configparser import ConfigParser
+from logging import basicConfig, info, critical
 
 
 # Запрос ленты новостей
@@ -19,16 +19,16 @@ def get_post():
 # Проверка даты новости
 def check(last_date, new_date, config):
     if parse_date(last_date) >= new_date:
-        logging.info(u'Post is old.')
+        info(u'Post is old.')
         return False
     elif parse_date(last_date) <= new_date:
-        logging.info(u'Post is new.')
+        info(u'Post is new.')
         config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
         with open('good_news.cfg', 'w') as configfile:
             config.write(configfile)
         return True
     else:
-        logging.critical(u'Error. Quit')
+        critical(u'Error. Quit')
         quit()
         return -1
 
@@ -74,7 +74,7 @@ def parse_date(str_date):
     try:
         return strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
     except ValueError:
-        logging.critical(u'Wrong date format.')
+        critical(u'Wrong date format.')
         quit()
 
 
@@ -86,23 +86,23 @@ def listen():
             post_message(item, config['BOT']['Name'],
                                config['BOT']['Token'],
                                config['BOT']['ChatId'])
-            logging.info(u'Post sent')
+            info(u'Post sent')
             sleep(30)
     return
 
 if __name__ == '__main__':
     # Чтение конфигурации
-    config = configparser.ConfigParser()
+    config = ConfigParser()
     try:
         config.read('good_news.cfg')
     except FileNotFoundError:
         print("Configuration file (good_news.cfg) not found")
         quit()
     # Запуск логгера
-    logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
+    basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
                         filename=config['LOG']['Path'],
                         level=config['LOG']['Level'])
-    logging.info(u'Bot has been started.')
+    info(u'Bot has been started.')
 
     loop = scheduler(time, sleep)
     loop.enter(180, 1, listen(), (*[loop, 0], ))
