@@ -48,8 +48,11 @@ def post_message(item, bot_name, bot_token, chat_id):
     # Формирование url'a запроса
     request = 'https://api.telegram.org/bot' + bot_name + ':' + bot_token + \
               '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + text
-    response = post(request)
-    # Доделать исключение на 404 и прочие http ошибки
+    try:
+        post(request)
+    except RequestException as er:
+        error(er)
+        quit()
     return
 
 
