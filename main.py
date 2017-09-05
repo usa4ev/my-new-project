@@ -98,7 +98,8 @@ if __name__ == '__main__':
         quit()
     # Запуск логгера
     logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
-                        filename=config['LOG']['Path'], level=config['LOG']['Level'])
+                        filename=config['LOG']['Path'],
+                        level=config['LOG']['Level'])
     logging.info(u'Бот запущен')
 
     loop = scheduler(time, sleep)
