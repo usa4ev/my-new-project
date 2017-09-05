@@ -2,7 +2,7 @@ from feedparser import parse
 from sched import scheduler
 from time import time, sleep
 from re import sub, findall, split
-from datetime.datetime import _strptime
+from time import strptime, strftime
 from requests import post
 import logging
 import configparser
@@ -15,13 +15,16 @@ def get_post():
 
 
 # Проверка даты новости
-def check(last_date, new_date):
-    if parse_date(last_date) >= parse_date(new_date):
+def check(last_date, new_date, config):
+    if parse_date(last_date) >= new_date:
         logging.info(u'Новость старая')
         return False
-    elif parse_date(last_date) <= parse_date(new_date):
+    elif parse_date(last_date) <= new_date:
         logging.info(u'Новость новая')
-        return new_date, True
+        config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
+        with open('good_news.cfg', 'w') as configfile:
+            config.write(configfile)
+        return True
     else:
         logging.critical(u'Какой-то пиздец в проверке. Лучше прилягу.')
         quit()
@@ -29,13 +32,17 @@ def check(last_date, new_date):
 
 
 # Отправка сообщения
-def post_message(item, bot_name, bot_token):
-    req_base = "https://api.telegram.org/bot"
-    req_method = '/sendMessage?'
-    req_params = 'chat_id='
-    req_text = ''
-    request = req_base + bot_name + bot_token + req_method + req_params + req_text
+def post_message(item, bot_name, bot_token, chat_id):
+    # Формирование текста сообщения
+    text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
+           + modifikator(item.description)
+    if hasattr(item, 'category'):
+        text = text + cat_to_hashtag(item.category)
+    # Формирование url'a запроса
+    request = 'https://api.telegram.org/bot' + bot_name + ':' + bot_token + \
+              '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + text
     response = post(request)
+    # Доделать исключение на 404 и прочие http ошибки
     return
 
 
@@ -51,35 +58,48 @@ def modifikator(text):
 
 # Превращение списка категорий в список хэштэгов
 def cat_to_hashtag(category):
-    lst = split(', ', category)
-    result = ''
-    for sub_str in lst:
-        if bool(result):
-            result = result + ', '
-        result = result + "#" + str.replace(sub_str.title(), ' ', '')
-    return result
-
-
-def wait(sc, i):
-    i = i + 1
-    s.enter(30 * 60, 1, check, (*[sc, i],))
+    series = split(', ', category)
+    hashtag_list = ''
+    for sub_str in series:
+        if bool(hashtag_list):
+            hashtag_list = hashtag_list + ', '
+        hashtag_list = hashtag_list + "#" + str.replace(sub_str.title(), ' ', '')
+    return hashtag_list
 
 
 # Превращение строки с датой в дату
 def parse_date(str_date):
-    return _strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
+    try:
+        return strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
+    except ValueError:
+        logging.critical(u'Вместо даты у вас в конфиге какая-то пизда. Почините.')
+        quit()
 
+
+# Прослушивание rss-фида и отправка новых новостей в канал
+def listen():
+    feed = get_post()
+    for item in reversed(feed.entries):
+        if check(config['BOT']['LastDate'], item.published_parsed, config):
+            post_message(item, config['BOT']['Name'],
+                               config['BOT']['Token'],
+                               config['BOT']['ChatId'])
+            logging.info(u'Новость отправлена')
+            sleep(30)
+    return
 
 if __name__ == '__main__':
-    # Запуск логгера
-    logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
-                        filename='good_news.log', level=logging.DEBUG)
-    logging.info(u'Бот запущен')
     # Чтение конфигурации
     config = configparser.ConfigParser()
-    config.read('good_news.cfg')
+    try:
+        config.read('good_news.cfg')
+    except FileNotFoundError:
+        print("Файл конфигурации (good_news.cfg) не найден")
+        quit()
+    # Запуск логгера
+    logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
+                        filename=config['LOG']['Path'], level=config['LOG']['Level'])
+    logging.info(u'Бот запущен')
 
-
-    s = scheduler(time, sleep)
-    s.enter(1, 1, check, (*[s, 0], ))
-    s.run()
+    loop = scheduler(time, sleep)
+    loop.enter(180, 1, listen(), (*[loop, 0], ))
