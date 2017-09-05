@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from feedparser import parse
 from sched import scheduler
 from time import time, sleep
@@ -17,16 +19,16 @@ def get_post():
 # Проверка даты новости
 def check(last_date, new_date, config):
     if parse_date(last_date) >= new_date:
-        logging.info(u'Новость старая')
+        logging.info(u'Post is old.')
         return False
     elif parse_date(last_date) <= new_date:
-        logging.info(u'Новость новая')
+        logging.info(u'Post is new.')
         config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
         with open('good_news.cfg', 'w') as configfile:
             config.write(configfile)
         return True
     else:
-        logging.critical(u'Какой-то пиздец в проверке. Лучше прилягу.')
+        logging.critical(u'Error. Quit')
         quit()
         return -1
 
@@ -72,7 +74,7 @@ def parse_date(str_date):
     try:
         return strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
     except ValueError:
-        logging.critical(u'Вместо даты у вас в конфиге какая-то пизда. Почините.')
+        logging.critical(u'Wrong date format.')
         quit()
 
 
@@ -84,7 +86,7 @@ def listen():
             post_message(item, config['BOT']['Name'],
                                config['BOT']['Token'],
                                config['BOT']['ChatId'])
-            logging.info(u'Новость отправлена')
+            logging.info(u'Post sent')
             sleep(30)
     return
 
@@ -94,13 +96,13 @@ if __name__ == '__main__':
     try:
         config.read('good_news.cfg')
     except FileNotFoundError:
-        print("Файл конфигурации (good_news.cfg) не найден")
+        print("Configuration file (good_news.cfg) not found")
         quit()
     # Запуск логгера
     logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
                         filename=config['LOG']['Path'],
                         level=config['LOG']['Level'])
-    logging.info(u'Бот запущен')
+    logging.info(u'Bot has been started.')
 
     loop = scheduler(time, sleep)
     loop.enter(180, 1, listen(), (*[loop, 0], ))
