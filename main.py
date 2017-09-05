@@ -6,13 +6,18 @@ from time import time, sleep
 from re import sub, findall, split
 from time import strptime, strftime
 from requests import post
+from requests.exceptions import RequestException
 from configparser import ConfigParser
-from logging import basicConfig, info, critical
+from logging import basicConfig, info, critical, error
 
 
 # Запрос ленты новостей
 def get_post():
-    feed = parse("http://rus.vrw.ru/feed")
+    try:
+        feed = parse("http://rus.vrw.ru/feed")
+    except RequestException as er:
+        error(er)
+        quit()
     return feed
 
 
