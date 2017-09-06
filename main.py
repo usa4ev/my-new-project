@@ -6,19 +6,18 @@ from time import time, sleep
 from re import sub, findall, split
 from time import strptime, strftime
 from requests import post
-from requests.exceptions import RequestException
 from configparser import ConfigParser
-from logging import basicConfig, info, critical, error
+from logging import basicConfig, info, critical, error, getLogger
 
 
 # Запрос ленты новостей
 def get_post():
-    try:
-        feed = parse("http://rus.vrw.ru/feed")
-    except RequestException as er:
-        error(er)
+    feed = parse("http://rus.vrw.ru/feed")
+    if feed.status != 200:
+        error(u'Quit. Error received. Check feed address.')
         quit()
-    return feed
+    else:
+        return feed
 
 
 # Проверка даты новости
@@ -48,11 +47,7 @@ def post_message(item, bot_name, bot_token, chat_id):
     # Формирование url'a запроса
     request = 'https://api.telegram.org/bot' + bot_name + ':' + bot_token + \
               '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + text
-    try:
-        post(request)
-    except RequestException as er:
-        error(er)
-        quit()
+    post(request)
     return
 
 
@@ -104,12 +99,13 @@ if __name__ == '__main__':
     try:
         config.read('good_news.cfg')
     except FileNotFoundError:
-        print("Configuration file (good_news.cfg) not found")
+        print(u'Configuration file (good_news.cfg) not found')
         quit()
     # Запуск логгера
-    basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
-                        filename=config['LOG']['Path'],
-                        level=config['LOG']['Level'])
+    basicConfig(format=u'%(levelname)-3s [%(asctime)s] |%(module)s|  %(message)s',
+                filename=config['LOG']['Path'],
+                level=config['LOG']['Level'])
+    log = getLogger(u'Good News Bot')
     info(u'Bot has been started.')
 
     loop = scheduler(time, sleep)
