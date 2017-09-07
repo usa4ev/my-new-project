@@ -14,7 +14,7 @@ from logging import basicConfig, info, critical, error, getLogger
 def get_post():
     feed = parse("http://rus.vrw.ru/feed")
     if feed.status != 200:
-        error(u'Quit. Error received. Check feed address.')
+        error(u'Error. HTTP is not 200. Quit.')
         quit()
     else:
         return feed
@@ -22,12 +22,12 @@ def get_post():
 
 # Проверка даты новости
 def check(last_date, new_date, config):
-    if parse_date(last_date) >= new_date:
+    if parse_date(last_date) >= parse_date(new_date):
         info(u'Post is old.')
         return False
-    elif parse_date(last_date) <= new_date:
+    elif parse_date(last_date) <= parse_date(new_date):
         info(u'Post is new.')
-        config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
+        config['BOT']['LastDate'] = str(new_date)
         with open('good_news.cfg', 'w') as configfile:
             config.write(configfile)
         return True
@@ -85,7 +85,7 @@ def parse_date(str_date):
 def listen():
     feed = get_post()
     for item in reversed(feed.entries):
-        if check(config['BOT']['LastDate'], item.published_parsed, config):
+        if check(config['BOT']['LastDate'], item.published, config):
             post_message(item, config['BOT']['Name'],
                                config['BOT']['Token'],
                                config['BOT']['ChatId'])
