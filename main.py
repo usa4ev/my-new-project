@@ -22,10 +22,10 @@ def get_post():
 # Проверка даты новости
 def check(last_date, new_date, config):
     if parse_date(last_date) >= new_date:
-        logging.info(u'Новость старая')
+        info(u'Новость старая')
         return False
     elif parse_date(last_date) <= new_date:
-        logging.info(u'Новость новая')
+        info(u'Новость новая')
         config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
         with open('good_news.cfg', 'w') as configfile:
             config.write(configfile)
@@ -53,7 +53,7 @@ def post_message(item, bot_token, chat_id):
     response = request.urlopen(newRequest)
 
     if response.getcode() != 200:
-        logging.critical(u'Запрос не смог. Код ответа: ', response.status_code, '. Программа остановлена.')
+        critical(u'Запрос не смог. Код ответа: ', response.status_code, '. Программа остановлена.')
         quit()
     return
 
