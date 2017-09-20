@@ -4,15 +4,19 @@ from time import time, sleep
 from re import sub, findall, split
 from time import strptime, strftime
 from urllib import request, parse as urlParser
-import logging
-import configparser
+from logging import basicConfig, info, critical, error, getLogger
+from configparser import ConfigParser
 
 
 # Запрос ленты новостей
 def get_post():
     registerDateHandler(parse_date)
     feed = parse("http://rus.vrw.ru/feed")
-    return feed
+    if feed.status != 200:
+        error(u'Error. HTTP is not 200. Quit.')
+        quit()
+    else:
+        return feed
 
 
 # Проверка даты новости
@@ -27,7 +31,7 @@ def check(last_date, new_date, config):
             config.write(configfile)
         return True
     else:
-        logging.critical(u'Какой-то пиздец в проверке. Лучше прилягу.')
+        critical(u'Error. Quit')
         quit()
         return -1
 
@@ -41,7 +45,6 @@ def post_message(item, bot_token, chat_id):
     if hasattr(item, 'category'):
         text = text + '\n' + cat_to_hashtag(item.category)
     # Формирование url'a запроса
-    host = 'api.telegram.org'
     url = 'https://api.telegram.org/bot' + bot_token + '%2FsendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' +\
             urlParser.quote_plus(text)
 
@@ -81,7 +84,7 @@ def parse_date(str_date):
     try:
         return strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
     except ValueError:
-        logging.critical(u'Вместо даты у вас в конфиге какая-то пизда. Почините.')
+        critical(u'Wrong date format.')
         quit()
 
 
@@ -92,24 +95,24 @@ def listen():
         if check(config['BOT']['LastDate'], item.published_parsed, config):
             post_message(item, config['BOT']['Token'],
                                config['BOT']['ChatId'])
-            logging.info(u'Новость отправлена')
-            sleep(1)
-    sleep(30*60)
-
+            info(u'Post sent')
+            sleep(30*60)
+    return
 
 if __name__ == '__main__':
     # Чтение конфигурации
-    config = configparser.ConfigParser()
+    config = ConfigParser()
     try:
         config.read('good_news.cfg')
     except FileNotFoundError:
-        print("Файл конфигурации (good_news.cfg) не найден")
+        print(u'Configuration file (good_news.cfg) not found')
         quit()
     # Запуск логгера
-    logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
-                        filename=config['LOG']['Path'],
-                        level=config['LOG']['Level'])
-    logging.info(u'Бот запущен')
+    basicConfig(format=u'%(levelname)-3s [%(asctime)s] |%(module)s|  %(message)s',
+                filename=config['LOG']['Path'],
+                level=config['LOG']['Level'])
+    log = getLogger(u'Good News Bot')
+    info(u'Bot has been started.')
 
     loop = scheduler(time, sleep)
     loop.enter(1, 1, listen(), (*[loop, 0], ))
