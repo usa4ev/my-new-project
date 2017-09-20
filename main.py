@@ -1,15 +1,16 @@
-from feedparser import parse
+from feedparser import parse, registerDateHandler
 from sched import scheduler
 from time import time, sleep
 from re import sub, findall, split
 from time import strptime, strftime
-from requests import post
+from urllib import request, parse as urlParser
 import logging
 import configparser
 
 
 # Запрос ленты новостей
 def get_post():
+    registerDateHandler(parse_date)
     feed = parse("http://rus.vrw.ru/feed")
     return feed
 
@@ -32,17 +33,25 @@ def check(last_date, new_date, config):
 
 
 # Отправка сообщения
-def post_message(item, bot_name, bot_token, chat_id):
+def post_message(item, bot_token, chat_id):
+
     # Формирование текста сообщения
     text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
            + modifikator(item.description)
     if hasattr(item, 'category'):
-        text = text + cat_to_hashtag(item.category)
+        text = text + '\n' + cat_to_hashtag(item.category)
     # Формирование url'a запроса
-    request = 'https://api.telegram.org/bot' + bot_name + ':' + bot_token + \
-              '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + text
-    response = post(request)
-    # Доделать исключение на 404 и прочие http ошибки
+    host = 'api.telegram.org'
+    url = 'https://api.telegram.org/bot' + bot_token + '%2FsendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' +\
+            urlParser.quote_plus(text)
+
+    newRequest = request.Request(url,method='POST')
+    newRequest.host = 'api.telegram.org'
+    response = request.urlopen(newRequest)
+
+    if response.getcode() != 200:
+        logging.critical(u'Запрос не смог. Код ответа: ', response.status_code, '. Программа остановлена.')
+        quit()
     return
 
 
@@ -53,7 +62,7 @@ def modifikator(text):
     match = findall(r'(?<=&#)[0-9]+(?=;)', modified_text)
     for each in match:
         modified_text = modified_text.replace(r'&#' + each + r';', chr(int(each)))
-    return modified_text
+    return modified_text.rstrip()
 
 
 # Превращение списка категорий в список хэштэгов
@@ -81,12 +90,12 @@ def listen():
     feed = get_post()
     for item in reversed(feed.entries):
         if check(config['BOT']['LastDate'], item.published_parsed, config):
-            post_message(item, config['BOT']['Name'],
-                               config['BOT']['Token'],
+            post_message(item, config['BOT']['Token'],
                                config['BOT']['ChatId'])
             logging.info(u'Новость отправлена')
-            sleep(30)
-    return
+            sleep(1)
+    sleep(30*60)
+
 
 if __name__ == '__main__':
     # Чтение конфигурации
@@ -103,4 +112,4 @@ if __name__ == '__main__':
     logging.info(u'Бот запущен')
 
     loop = scheduler(time, sleep)
-    loop.enter(180, 1, listen(), (*[loop, 0], ))
+    loop.enter(1, 1, listen(), (*[loop, 0], ))
