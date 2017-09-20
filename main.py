@@ -2,82 +2,105 @@ from feedparser import parse
 from sched import scheduler
 from time import time, sleep
 from re import sub, findall, split
-from datetime import datetime
-import telegram as telega
+from time import strptime, strftime
+from requests import post
+import logging
+import configparser
 
-def check(sc, i):
-    state = datetime.strftime(datetime.today(), '%c') + ' Итерация: ' + str(i)
+
+# Запрос ленты новостей
+def get_post():
     feed = parse("http://rus.vrw.ru/feed")
-    new_date = parse_date(feed['channel'].published)
-    with open('my_file.txt','r+') as f:
-        last_date = f.read()
-        if bool(last_date):
-            check_pub_date = True
-            last_date = datetime.strptime(last_date, '%c %z')
-            if new_date <= last_date:
-                print(state, '- Нет обновлений...')
-                wait(sc, i)
-                return
-        else:
-            check_pub_date = False
-
-        f.write(datetime.strftime(new_date, '%c %z'))
-
-    token = ""
-    bot = telega.Bot(token)
-
-    for item in reversed(feed.entries):
-        pub_date = parse_date(item.published)
-
-        if check_pub_date:
-            if pub_date <= last_date:
-                continue
-
-        text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
-               '' + modifikator(item.description)
-
-        if hasattr(item, 'category'):
-            text = text + '\n\n' + cat_to_hashtag(item.category)
-
-        bot.sendMessage("@good_news_everybody", text, parse_mode="Markdown", disable_web_page_preview=False, timeout=5)
-        sleep(1)
-
-    print(state, ' - Публикация обновлена!\n', 'Дата публикации: ', datetime.strftime(new_date, '%c'))
-    wait(sc, i)
+    return feed
 
 
-def cat_to_hashtag(category):
-    lst = split(', ', category)
-    result = ''
-    for sub_str in lst:
-        if bool(result):
-            result = result + ', '
-        result = result + "#" + str.replace(sub_str.title(), ' ', '')
+# Проверка даты новости
+def check(last_date, new_date, config):
+    if parse_date(last_date) >= new_date:
+        logging.info(u'Новость старая')
+        return False
+    elif parse_date(last_date) <= new_date:
+        logging.info(u'Новость новая')
+        config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
+        with open('good_news.cfg', 'w') as configfile:
+            config.write(configfile)
+        return True
+    else:
+        logging.critical(u'Какой-то пиздец в проверке. Лучше прилягу.')
+        quit()
+        return -1
 
-    return result
+
+# Отправка сообщения
+def post_message(item, bot_name, bot_token, chat_id):
+    # Формирование текста сообщения
+    text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
+           + modifikator(item.description)
+    if hasattr(item, 'category'):
+        text = text + cat_to_hashtag(item.category)
+    # Формирование url'a запроса
+    request = 'https://api.telegram.org/bot' + bot_name + ':' + bot_token + \
+              '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + text
+    response = post(request)
+    # Доделать исключение на 404 и прочие http ошибки
+    return
 
 
+# Очистка текста от html-тэгов и замена ascii-кодов на ascii-символы
 def modifikator(text):
     modified_text = sub(r'(<.?([a-z][a-z0-9]*)\b[^>]*>)|Читать полностью »|Обсудить|\s{2,}', '', text)
     modified_text = modified_text.replace('\n', '\n\n')
     match = findall(r'(?<=&#)[0-9]+(?=;)', modified_text)
     for each in match:
         modified_text = modified_text.replace(r'&#' + each + r';', chr(int(each)))
-
-    return modified_text.rstrip()
-
-
-def wait(sc, i):
-    i = i + 1
-    s.enter(30 * 60, 1, check, (*[sc, i],))
+    return modified_text
 
 
+# Превращение списка категорий в список хэштэгов
+def cat_to_hashtag(category):
+    series = split(', ', category)
+    hashtag_list = ''
+    for sub_str in series:
+        if bool(hashtag_list):
+            hashtag_list = hashtag_list + ', '
+        hashtag_list = hashtag_list + "#" + str.replace(sub_str.title(), ' ', '')
+    return hashtag_list
+
+
+# Превращение строки с датой в дату
 def parse_date(str_date):
-    return datetime.strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
+    try:
+        return strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
+    except ValueError:
+        logging.critical(u'Вместо даты у вас в конфиге какая-то пизда. Почините.')
+        quit()
 
+
+# Прослушивание rss-фида и отправка новых новостей в канал
+def listen():
+    feed = get_post()
+    for item in reversed(feed.entries):
+        if check(config['BOT']['LastDate'], item.published_parsed, config):
+            post_message(item, config['BOT']['Name'],
+                               config['BOT']['Token'],
+                               config['BOT']['ChatId'])
+            logging.info(u'Новость отправлена')
+            sleep(30)
+    return
 
 if __name__ == '__main__':
-    print("running...")
-    s = scheduler(time, sleep)
-    s.enter(1, 1, check, (*[s, 0], ))
-    s.run()
+    # Чтение конфигурации
+    config = configparser.ConfigParser()
+    try:
+        config.read('good_news.cfg')
+    except FileNotFoundError:
+        print("Файл конфигурации (good_news.cfg) не найден")
+        quit()
+    # Запуск логгера
+    logging.basicConfig(format=u'%(levelname)-3s [%(asctime)s]  %(message)s',
+                        filename=config['LOG']['Path'],
+                        level=config['LOG']['Level'])
+    logging.info(u'Бот запущен')
+
+    loop = scheduler(time, sleep)
+    loop.enter(180, 1, listen(), (*[loop, 0], ))
