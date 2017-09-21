@@ -6,6 +6,7 @@ from time import strptime, strftime
 from urllib import request, parse as urlParser
 from logging import basicConfig, info, critical, error, getLogger
 from configparser import ConfigParser
+from os import path
 
 
 # Запрос ленты новостей
@@ -110,13 +111,14 @@ if __name__ == '__main__':
     # Чтение конфигурации
     config = ConfigParser()
     try:
-        config.read('good_news.cfg')
+        config_file = path.normpath(path.join(path.dirname(__file__), 'good_news.cfg'))
+        config.read(config_file, encoding='utf-8')
     except FileNotFoundError:
-        print(u'Configuration file (good_news.cfg) not found')
+        print(u'Cannot open Configuration file (good_news.cfg)')
         quit()
     # Запуск логгера
     basicConfig(format=u'%(levelname)-3s [%(asctime)s] |%(module)s|  %(message)s',
-                filename=config['LOG']['Path'],
+                filename= path.normpath(path.join(path.dirname(__file__), config['LOG']['Path'])),
                 level=config['LOG']['Level'])
     log = getLogger(u'Good News Bot')
     info(u'Bot has been started.')
