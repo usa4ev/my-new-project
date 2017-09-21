@@ -53,7 +53,7 @@ def post_message(item, bot_token, chat_id):
     response = request.urlopen(newRequest)
 
     if response.getcode() != 200:
-        critical(u'Запрос не смог. Код ответа: ', response.status_code, '. Программа остановлена.')
+        critical(u'Request failed. Status code: ', response.status_code, '. Program stopped running.')
         quit()
     return
 
