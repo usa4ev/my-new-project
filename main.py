@@ -22,10 +22,10 @@ def get_post():
 # Проверка даты новости
 def check(last_date, new_date, config):
     if parse_date(last_date) >= new_date:
-        info(u'Новость старая')
+        info(u'Old item')
         return False
     elif parse_date(last_date) <= new_date:
-        info(u'Новость новая')
+        info(u'New item')
         config['BOT']['LastDate'] = strftime('%a, %d %b %Y %H:%M:%S %z', new_date)
         with open('good_news.cfg', 'w') as configfile:
             config.write(configfile)
@@ -48,12 +48,12 @@ def post_message(item, bot_token, chat_id):
     url = 'https://api.telegram.org/bot' + bot_token + '%2FsendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' +\
             urlParser.quote_plus(text)
 
-    newRequest = request.Request(url,method='POST')
+    newRequest = request.Request(url, method='POST')
     newRequest.host = 'api.telegram.org'
     response = request.urlopen(newRequest)
 
     if response.getcode() != 200:
-        critical(u'Запрос не смог. Код ответа: ', response.status_code, '. Программа остановлена.')
+        critical(u'Request failed. Status code: ', response.status_code, '. Program stopped running.')
         quit()
     return
 
