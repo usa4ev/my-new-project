@@ -89,15 +89,22 @@ def parse_date(str_date):
 
 
 # Прослушивание rss-фида и отправка новых новостей в канал
-def listen():
+def listen(c_loop, i):
     feed = get_post()
     for item in reversed(feed.entries):
         if check(config['BOT']['LastDate'], item.published_parsed, config):
             post_message(item, config['BOT']['Token'],
                                config['BOT']['ChatId'])
             info(u'Post sent')
-            sleep(30*60)
+            sleep(1)
+    wait(c_loop, i)
     return
+
+
+def wait(c_loop, i):
+    i = i + 1
+    loop.enter(30 * 60, 1, listen, (*[c_loop, i],))
+
 
 if __name__ == '__main__':
     # Чтение конфигурации
@@ -115,4 +122,5 @@ if __name__ == '__main__':
     info(u'Bot has been started.')
 
     loop = scheduler(time, sleep)
-    loop.enter(1, 1, listen(), (*[loop, 0], ))
+    loop.enter(1, 1, listen, (*[loop, 0], ))
+    loop.run()
