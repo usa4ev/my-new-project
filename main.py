@@ -27,7 +27,7 @@ def check(last_date, new_date, conf):
         return False
     elif parse_date(last_date) <= parse_date(new_date):
         info(u'Post is new.')
-        config['BOT']['LastDate'] = str(new_date)
+        conf['BOT']['LastDate'] = str(new_date)
         with open('good_news.cfg', 'w') as configfile:
             conf.write(configfile)
         return True
@@ -85,26 +85,26 @@ def parse_date(str_date):
 def listen():
     feed = get_post()
     for item in reversed(feed.entries):
-        if check(conf['BOT']['LastDate'], item.published, conf):
-            post_message(item, conf['BOT']['Name'],
-                               conf['BOT']['Token'],
-                               conf['BOT']['ChatId'])
+        if check(bot_conf['BOT']['LastDate'], item.published, bot_conf):
+            post_message(item, bot_conf['BOT']['Name'],
+                         bot_conf['BOT']['Token'],
+                         bot_conf['BOT']['ChatId'])
             info(u'Post sent')
             sleep(30)
     return
 
 if __name__ == '__main__':
     # Чтение конфигурации
-    conf = ConfigParser()
+    bot_conf = ConfigParser()
     try:
-        config.read('good_news.cfg')
+        bot_conf.read('good_news.cfg')
     except FileNotFoundError:
         print(u'Configuration file (good_news.cfg) not found')
         quit()
     # Запуск логгера
     basicConfig(format=u'%(levelname)-3s [%(asctime)s] |%(module)s|  %(message)s',
-                filename=conf['LOG']['Path'],
-                level=conf['LOG']['Level'])
+                filename=bot_conf['LOG']['Path'],
+                level=bot_conf['LOG']['Level'])
     log = getLogger(u'Good News Bot')
     info(u'Bot has been started.')
 
