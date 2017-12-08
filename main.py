@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
+"""
+Good news telegram bot.
+It takes rss fedd from http://rus.vrw.ru/feed, parse it and send to telegram channel
+"""
 
-from feedparser import parse
+from time import time, sleep, strptime
 from sched import scheduler
-from time import time, sleep
 from re import sub, findall, split
-from time import strptime, strftime
-from requests import post
 from configparser import ConfigParser
 from logging import basicConfig, info, critical, error, getLogger
+from requests import post
+from feedparser import parse
 
 
-# Запрос ленты новостей
 def get_post():
+    """ Request news feed """
     feed = parse("http://rus.vrw.ru/feed")
     if feed.status != 200:
         error(u'Error. HTTP is not 200. Quit.')
@@ -20,8 +23,8 @@ def get_post():
         return feed
 
 
-# Проверка даты новости
 def check(last_date, new_date, conf):
+    """ Check news date """
     if parse_date(last_date) >= parse_date(new_date):
         info(u'Post is old.')
         return False
@@ -37,22 +40,20 @@ def check(last_date, new_date, conf):
         return -1
 
 
-# Отправка сообщения
 def post_message(item, bot_name, bot_token, chat_id):
-    # Формирование текста сообщения
+    """ Send message to channel """
     text = "[" + modifikator(item.title) + "](" + item.link + ")" + "\n\n"\
            + modifikator(item.description)
     if hasattr(item, 'category'):
         text = text + cat_to_hashtag(item.category)
-    # Формирование url'a запроса
     request = 'https://api.telegram.org/bot' + bot_name + ':' + bot_token + \
               '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + text
     post(request)
     return
 
 
-# Очистка текста от html-тэгов и замена ascii-кодов на ascii-символы
 def modifikator(text):
+    """ To clean text and replace ascii-codes with ascii-symbols"""
     modified_text = sub(r'(<.?([a-z][a-z0-9]*)\b[^>]*>)|Читать полностью »|Обсудить|\s{2,}', '', text)
     modified_text = modified_text.replace('\n', '\n\n')
     match = findall(r'(?<=&#)[0-9]+(?=;)', modified_text)
@@ -61,8 +62,8 @@ def modifikator(text):
     return modified_text
 
 
-# Превращение списка категорий в список хэштэгов
 def cat_to_hashtag(category):
+    """ Makes list of hashtags from list of categories and return it. """
     series = split(', ', category)
     hashtag_list = ''
     for sub_str in series:
@@ -72,8 +73,8 @@ def cat_to_hashtag(category):
     return hashtag_list
 
 
-# Превращение строки с датой в дату
 def parse_date(str_date):
+    """ Type adduction. From string to date. """
     try:
         return strptime(str_date, '%a, %d %b %Y %H:%M:%S %z')
     except ValueError:
@@ -81,8 +82,8 @@ def parse_date(str_date):
         quit()
 
 
-# Прослушивание rss-фида и отправка новых новостей в канал
 def listen():
+    """ Listen to rss and send messages to channel """
     feed = get_post()
     for item in reversed(feed.entries):
         if check(bot_conf['BOT']['LastDate'], item.published, bot_conf):
@@ -94,14 +95,12 @@ def listen():
     return
 
 if __name__ == '__main__':
-    # Чтение конфигурации
     bot_conf = ConfigParser()
     try:
         bot_conf.read('good_news.cfg')
     except FileNotFoundError:
         print(u'Configuration file (good_news.cfg) not found')
         quit()
-    # Запуск логгера
     basicConfig(format=u'%(levelname)-3s [%(asctime)s] |%(module)s|  %(message)s',
                 filename=bot_conf['LOG']['Path'],
                 level=bot_conf['LOG']['Level'])
